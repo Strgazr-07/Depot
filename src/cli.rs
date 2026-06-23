@@ -25,11 +25,15 @@ pub struct Cli {
 pub enum Command {
     /// Launch the interactive TUI (the default with no subcommand).
     Tui(ScanArgs),
-    /// Scan and print results — no UI. Add `--json` for machine output.
+    /// Scan and open the interactive UI to select & delete. Use `--print` or
+    /// `--json` for non-interactive output (also auto-used when piped).
     Scan {
         #[command(flatten)]
         args: ScanArgs,
-        /// Emit JSON instead of the grouped table.
+        /// Print the grouped table instead of opening the interactive UI.
+        #[arg(long)]
+        print: bool,
+        /// Emit JSON instead of opening the interactive UI.
         #[arg(long)]
         json: bool,
     },

@@ -47,10 +47,12 @@ This downloads the prebuilt native binary for your OS; no Rust toolchain needed.
 ### 🧹 Clean up disk
 
 ```bash
-depot                    # interactive TUI (default)
-depot scan               # headless, grouped table
-depot scan --category model --min-mb 100   # only ML models over 100 MB
+depot                    # interactive TUI
+depot scan               # interactive TUI — tick items, delete to Recycle Bin
+depot scan --print       # headless grouped table (also auto-used when piped)
 depot scan --json        # machine-readable
+depot scan --category model --min-mb 100   # filter: only ML models over 100 MB
+depot scan --path D:\code                  # scan a specific folder
 ```
 
 Detects, grouped into **Node · Python · Models · Build**:
