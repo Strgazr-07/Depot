@@ -19,12 +19,12 @@ then manages their packages through the shared store.
   ([`install.js`](npm/install.js)). On install it downloads the binary matching
   the user's OS/arch from the release whose tag is `v<version>`.
 - So **the npm version, the git tag, and the release must all match**
-  (e.g. `0.2.0` ⇄ `v0.2.0`).
+  (e.g. `0.2.1` ⇄ `v0.2.1`).
 
 ## One-time setup
 
 1. **Create the GitHub repo** and push this project to it.
-2. Replace `YOUR_GITHUB_USERNAME` with your GitHub user/org in:
+2. Replace `Strgazr-07` with your GitHub user/org in:
    - [`npm/package.json`](npm/package.json) → `repository`, `homepage`, `bugs`
    - [`npm/README.md`](npm/README.md) and the root [`README.md`](README.md)
 
@@ -39,12 +39,12 @@ then manages their packages through the shared store.
    - `npm/package.json` → `version`
 2. Commit, then tag and push the tag:
    ```bash
-   git commit -am "release v0.2.0"
-   git tag v0.2.0
+   git commit -am "release v0.2.1"
+   git tag v0.2.1
    git push && git push --tags
    ```
 3. The **release workflow** runs on the tag: it builds Windows / macOS (x64 +
-   arm64) / Linux binaries and attaches them to the GitHub Release `v0.2.0`.
+   arm64) / Linux binaries and attaches them to the GitHub Release `v0.2.1`.
    Wait for it to finish (Actions tab).
 4. **Publish to npm** (binaries are downloaded by users from the release, not
    bundled, so publish *after* the release assets exist):

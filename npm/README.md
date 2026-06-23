@@ -17,7 +17,7 @@ depot run dev       # run a project, assembling deps from the shared store
 depot hub add react # add a dependency via the shared store
 ```
 
-Full docs & source: https://github.com/YOUR_GITHUB_USERNAME/depot
+Full docs & source: https://github.com/Strgazr-07/Depot
 
 > Needs Node ≥ 16 to install. `depot run`/`hub` use **pnpm** (Node) and **uv**
 > (Python) under the hood; `depot hub init` will set pnpm up for you.

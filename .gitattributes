@@ -1,0 +1,8 @@
+# Normalize line endings. Keep CI/script files LF so Linux/macOS runners and
+# node shims never see a stray carriage return.
+* text=auto
+*.yml   text eol=lf
+*.yaml  text eol=lf
+*.sh    text eol=lf
+*.js    text eol=lf
+*.rs    text eol=lf

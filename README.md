@@ -5,7 +5,7 @@
 **Reclaim developer disk space — and share one global package store across all your projects.**
 
 [![npm](https://img.shields.io/npm/v/getdepot?color=cb3837&logo=npm)](https://www.npmjs.com/package/getdepot)
-[![release](https://img.shields.io/github/actions/workflow/status/YOUR_GITHUB_USERNAME/depot/release.yml?label=build)](https://github.com/YOUR_GITHUB_USERNAME/depot/actions)
+[![release](https://img.shields.io/github/actions/workflow/status/Strgazr-07/Depot/release.yml?label=build)](https://github.com/Strgazr-07/Depot/actions)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 </div>

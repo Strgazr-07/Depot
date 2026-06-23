@@ -1,6 +1,6 @@
 {
   "name": "getdepot",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Reclaim developer disk space and share one global package store across all your Node & Python projects. Installs the `depot` CLI.",
   "bin": {
     "depot": "bin/depot.js"
@@ -39,11 +39,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_GITHUB_USERNAME/depot.git"
+    "url": "git+https://github.com/Strgazr-07/Depot.git"
   },
-  "homepage": "https://github.com/YOUR_GITHUB_USERNAME/depot#readme",
+  "homepage": "https://github.com/Strgazr-07/Depot#readme",
   "bugs": {
-    "url": "https://github.com/YOUR_GITHUB_USERNAME/depot/issues"
+    "url": "https://github.com/Strgazr-07/Depot/issues"
   },
   "license": "MIT",
   "author": "Shrijesh SP"

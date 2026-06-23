@@ -1,6 +1,6 @@
 [package]
 name = "depot"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2021"
 description = "Scan your machine for npm/python/ML disk hogs and reclaim space, plus a shared pnpm+uv global package store."
 license = "MIT"
