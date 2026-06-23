@@ -1,0 +1,8 @@
+# Statically link the CRT/runtime so the produced depot.exe is self-contained
+# and carries no DLL dependencies (mingw on the GNU target; UCRT/vcruntime on
+# the MSVC target that CI builds). Other platforms link the system libc.
+[target.x86_64-pc-windows-gnu]
+rustflags = ["-C", "target-feature=+crt-static"]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]

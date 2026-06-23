@@ -1,0 +1,50 @@
+{
+  "name": "getdepot",
+  "version": "0.2.0",
+  "description": "Reclaim developer disk space and share one global package store across all your Node & Python projects. Installs the `depot` CLI.",
+  "bin": {
+    "depot": "bin/depot.js"
+  },
+  "scripts": {
+    "postinstall": "node ./install.js"
+  },
+  "files": [
+    "bin/",
+    "install.js",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=16"
+  },
+  "os": [
+    "win32",
+    "darwin",
+    "linux"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "keywords": [
+    "cli",
+    "disk-space",
+    "cleanup",
+    "node_modules",
+    "pnpm",
+    "uv",
+    "package-manager",
+    "monorepo",
+    "huggingface",
+    "depot"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/YOUR_GITHUB_USERNAME/depot.git"
+  },
+  "homepage": "https://github.com/YOUR_GITHUB_USERNAME/depot#readme",
+  "bugs": {
+    "url": "https://github.com/YOUR_GITHUB_USERNAME/depot/issues"
+  },
+  "license": "MIT",
+  "author": "Shrijesh SP"
+}

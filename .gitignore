@@ -1,0 +1,13 @@
+# Rust build output
+/target
+
+# npm bootstrap package
+node_modules/
+npm/binaries/
+*.tgz
+
+# editor / OS / tooling cruft
+*.rs.bk
+.DS_Store
+Thumbs.db
+.claude/
