@@ -36,6 +36,7 @@ struct App {
     state: ListState,
     filter: HashSet<Category>,
     scanning: bool,
+    deleting: bool,
     status: String,
     last_action: String,
 }
@@ -52,6 +53,7 @@ impl App {
             state: ListState::default(),
             filter: Category::ALL.iter().copied().collect(),
             scanning: true,
+            deleting: false,
             status: "Starting…".into(),
             last_action: String::new(),
         }
@@ -169,8 +171,9 @@ impl App {
             .sum()
     }
 
-    /// Send every path of every ticked item to the Recycle Bin / Trash.
-    fn delete_selected(&mut self) {
+    /// Snapshot the ticked items for deletion: every path to remove plus the
+    /// number of rows. `None` when nothing is ticked.
+    fn delete_snapshot(&self) -> Option<(Vec<PathBuf>, usize)> {
         let paths: Vec<PathBuf> = self
             .rows
             .iter()
@@ -178,25 +181,33 @@ impl App {
             .flat_map(|r| r.item.paths.clone())
             .collect();
         if paths.is_empty() {
-            self.last_action = "Nothing selected".into();
-            return;
+            return None;
         }
-        let reclaimed = self.selected_size();
-        if trash::delete_all(&paths).is_err() {
-            for p in &paths {
-                let _ = trash::delete(p);
-            }
-        }
+        Some((paths, self.selected_count()))
+    }
+
+    /// Called once the background delete worker signals completion: drop the
+    /// rows whose target is actually gone now, and report what was freed.
+    fn finish_delete(&mut self) {
+        let freed: u64 = self
+            .rows
+            .iter()
+            .filter(|r| !r.item.primary().exists())
+            .map(|r| r.item.size)
+            .sum();
         let before = self.rows.len();
-        // Drop rows whose representative path is now gone.
-        self.rows
-            .retain(|r| !r.selected || r.item.primary().exists());
+        self.rows.retain(|r| r.item.primary().exists());
         let removed = before - self.rows.len();
+        self.deleting = false;
         self.rebuild();
-        self.last_action = format!(
-            "Moved {removed} item(s) to Recycle Bin · freed ~{}",
-            human_size(reclaimed)
-        );
+        self.last_action = if removed == 0 {
+            "Nothing deleted (files in use or access denied)".into()
+        } else {
+            format!(
+                "Moved {removed} item(s) to Recycle Bin · freed ~{}",
+                human_size(freed)
+            )
+        };
     }
 }
 
@@ -214,6 +225,10 @@ fn run_loop(terminal: &mut DefaultTerminal, opts: ScanOptions) -> Result<()> {
     let scan_opts = opts.clone();
     let mut handle = Some(thread::spawn(move || run_scan(scan_opts, tx)));
 
+    // Deletions run on a worker thread so a slow/large Recycle Bin move never
+    // freezes the UI; this carries the "done" signal back.
+    let mut del_rx: Option<mpsc::Receiver<()>> = None;
+
     loop {
         terminal.draw(|f| ui(f, &mut app))?;
 
@@ -230,6 +245,16 @@ fn run_loop(terminal: &mut DefaultTerminal, opts: ScanOptions) -> Result<()> {
             }
         }
 
+        // Has the delete worker finished? (Empty = still running.)
+        let delete_done = match &del_rx {
+            Some(drx) => !matches!(drx.try_recv(), Err(mpsc::TryRecvError::Empty)),
+            None => false,
+        };
+        if delete_done {
+            app.finish_delete();
+            del_rx = None;
+        }
+
         if event::poll(Duration::from_millis(120))? {
             if let Event::Key(key) = event::read()? {
                 if key.kind != KeyEventKind::Press {
@@ -242,12 +267,32 @@ fn run_loop(terminal: &mut DefaultTerminal, opts: ScanOptions) -> Result<()> {
                     KeyCode::Char(' ') => app.toggle(),
                     KeyCode::Char('a') => app.set_all(true),
                     KeyCode::Char('n') => app.set_all(false),
-                    KeyCode::Char('d') => app.delete_selected(),
+                    KeyCode::Char('d') => {
+                        if app.deleting {
+                            // a delete is already running — ignore
+                        } else if let Some((paths, count)) = app.delete_snapshot() {
+                            app.deleting = true;
+                            app.last_action = format!("Deleting {count} item(s)…");
+                            let (dtx, drx) = mpsc::channel();
+                            del_rx = Some(drx);
+                            // One-at-a-time on a worker thread: the batched
+                            // shell delete can block, and doing it off the UI
+                            // thread keeps the interface responsive regardless.
+                            thread::spawn(move || {
+                                for p in &paths {
+                                    let _ = trash::delete(p);
+                                }
+                                let _ = dtx.send(());
+                            });
+                        } else {
+                            app.last_action = "Nothing selected".into();
+                        }
+                    }
                     KeyCode::Char('1') => app.toggle_filter(Category::Node),
                     KeyCode::Char('2') => app.toggle_filter(Category::Python),
                     KeyCode::Char('3') => app.toggle_filter(Category::Model),
                     KeyCode::Char('4') => app.toggle_filter(Category::Build),
-                    KeyCode::Char('r') => {
+                    KeyCode::Char('r') if !app.deleting => {
                         app.rows.clear();
                         app.rebuild();
                         app.scanning = true;
