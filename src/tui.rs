@@ -30,6 +30,12 @@ enum Disp {
     Item(usize),
 }
 
+/// Progress updates from the background delete worker.
+enum DeleteMsg {
+    Progress(PathBuf),
+    Done,
+}
+
 struct App {
     rows: Vec<Row>,
     disp: Vec<Disp>,
@@ -37,6 +43,10 @@ struct App {
     filter: HashSet<Category>,
     scanning: bool,
     deleting: bool,
+    delete_total: usize,
+    delete_done: usize,
+    delete_current: String,
+    tick: u64,
     status: String,
     last_action: String,
 }
@@ -54,6 +64,10 @@ impl App {
             filter: Category::ALL.iter().copied().collect(),
             scanning: true,
             deleting: false,
+            delete_total: 0,
+            delete_done: 0,
+            delete_current: String::new(),
+            tick: 0,
             status: "Starting…".into(),
             last_action: String::new(),
         }
@@ -199,6 +213,9 @@ impl App {
         self.rows.retain(|r| r.item.primary().exists());
         let removed = before - self.rows.len();
         self.deleting = false;
+        self.delete_total = 0;
+        self.delete_done = 0;
+        self.delete_current.clear();
         self.rebuild();
         self.last_action = if removed == 0 {
             "Nothing deleted (files in use or access denied)".into()
@@ -226,10 +243,11 @@ fn run_loop(terminal: &mut DefaultTerminal, opts: ScanOptions) -> Result<()> {
     let mut handle = Some(thread::spawn(move || run_scan(scan_opts, tx)));
 
     // Deletions run on a worker thread so a slow/large Recycle Bin move never
-    // freezes the UI; this carries the "done" signal back.
-    let mut del_rx: Option<mpsc::Receiver<()>> = None;
+    // freezes the UI; this carries per-item progress and the final "done" signal.
+    let mut del_rx: Option<mpsc::Receiver<DeleteMsg>> = None;
 
     loop {
+        app.tick = app.tick.wrapping_add(1);
         terminal.draw(|f| ui(f, &mut app))?;
 
         loop {
@@ -245,12 +263,28 @@ fn run_loop(terminal: &mut DefaultTerminal, opts: ScanOptions) -> Result<()> {
             }
         }
 
-        // Has the delete worker finished? (Empty = still running.)
-        let delete_done = match &del_rx {
-            Some(drx) => !matches!(drx.try_recv(), Err(mpsc::TryRecvError::Empty)),
-            None => false,
-        };
-        if delete_done {
+        // Drain delete-progress messages (Empty = worker still running).
+        let mut delete_finished = false;
+        if let Some(drx) = &del_rx {
+            loop {
+                match drx.try_recv() {
+                    Ok(DeleteMsg::Progress(p)) => {
+                        app.delete_done += 1;
+                        app.delete_current = p.display().to_string();
+                    }
+                    Ok(DeleteMsg::Done) => {
+                        delete_finished = true;
+                        break;
+                    }
+                    Err(mpsc::TryRecvError::Empty) => break,
+                    Err(mpsc::TryRecvError::Disconnected) => {
+                        delete_finished = true;
+                        break;
+                    }
+                }
+            }
+        }
+        if delete_finished {
             app.finish_delete();
             del_rx = None;
         }
@@ -270,19 +304,25 @@ fn run_loop(terminal: &mut DefaultTerminal, opts: ScanOptions) -> Result<()> {
                     KeyCode::Char('d') => {
                         if app.deleting {
                             // a delete is already running — ignore
-                        } else if let Some((paths, count)) = app.delete_snapshot() {
+                        } else if let Some((paths, _count)) = app.delete_snapshot() {
                             app.deleting = true;
-                            app.last_action = format!("Deleting {count} item(s)…");
+                            app.delete_total = paths.len();
+                            app.delete_done = 0;
+                            app.delete_current.clear();
+                            app.last_action.clear();
                             let (dtx, drx) = mpsc::channel();
                             del_rx = Some(drx);
                             // One-at-a-time on a worker thread: the batched
                             // shell delete can block, and doing it off the UI
                             // thread keeps the interface responsive regardless.
+                            // Progress is reported after each item so the UI
+                            // can show what's being deleted right now.
                             thread::spawn(move || {
                                 for p in &paths {
                                     let _ = trash::delete(p);
+                                    let _ = dtx.send(DeleteMsg::Progress(p.clone()));
                                 }
-                                let _ = dtx.send(());
+                                let _ = dtx.send(DeleteMsg::Done);
                             });
                         } else {
                             app.last_action = "Nothing selected".into();
@@ -410,22 +450,43 @@ fn ui(f: &mut Frame, app: &mut App) {
     f.render_stateful_widget(list, chunks[1], &mut app.state);
 
     // ── Footer ────────────────────────────────────────────────────────────
-    let mut status_line = vec![
-        Span::styled(
-            format!(" {} visible ", human_size(app.visible_total())),
-            Style::default().fg(Color::Yellow),
-        ),
-        Span::raw("· "),
-        Span::styled(
-            format!(
-                "{} in {} selected ",
-                human_size(app.selected_size()),
-                app.selected_count()
+    let mut status_line = if app.deleting {
+        const SPINNER: [&str; 10] = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+        let frame = SPINNER[(app.tick as usize / 2) % SPINNER.len()];
+        vec![
+            Span::styled(
+                format!(" {frame} "),
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
             ),
-            Style::default().fg(Color::Green),
-        ),
-    ];
-    if !app.last_action.is_empty() {
+            Span::styled(
+                format!("Deleting {}/{} ", app.delete_done, app.delete_total),
+                Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD),
+            ),
+        ]
+    } else {
+        vec![
+            Span::styled(
+                format!(" {} visible ", human_size(app.visible_total())),
+                Style::default().fg(Color::Yellow),
+            ),
+            Span::raw("· "),
+            Span::styled(
+                format!(
+                    "{} in {} selected ",
+                    human_size(app.selected_size()),
+                    app.selected_count()
+                ),
+                Style::default().fg(Color::Green),
+            ),
+        ]
+    };
+    if app.deleting && !app.delete_current.is_empty() {
+        status_line.push(Span::raw("· "));
+        status_line.push(Span::styled(
+            truncate(&app.delete_current, 60),
+            Style::default().fg(Color::DarkGray),
+        ));
+    } else if !app.last_action.is_empty() {
         status_line.push(Span::raw("· "));
         status_line.push(Span::styled(
             app.last_action.clone(),
