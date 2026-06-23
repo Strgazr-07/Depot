@@ -1,0 +1,23 @@
+{
+  "name": "getdepot",
+  "version": "1.0.0",
+  "description": "Reclaim developer disk space — and share one global package store across all your projects.",
+  "keywords": [
+    "depot"
+  ],
+  "homepage": "https://github.com/Strgazr-07/Depot#readme",
+  "bugs": {
+    "url": "https://github.com/Strgazr-07/Depot/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Strgazr-07/Depot.git"
+  },
+  "license": "ISC",
+  "author": "shrijesh",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "npm install getdepot"
+  }
+}
